@@ -25,12 +25,13 @@ Installation
 
 ```bash
 kubectl apply -f https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.34.0/controller.yaml
-Verify controller is running:
 ```
+Verify controller is running:
 ```bash
 kubectl get pods -n kube-system | grep  sealed-secrets
-Expected: 1 pod in Running state.
 ```
+Expected: 1 pod in Running state.
+
 2. Install kubeseal CLI (Linux)
 
 ```bash
