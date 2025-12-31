@@ -49,7 +49,7 @@ kubeseal --version  # Should show v0.34.0
 
 ```bash
 kubeseal --fetch-cert \
-  --controller-name=sealed-secrets \
+  --controller-name=sealed-secrets-controller \
   --controller-namespace=kube-system \
   > pub-cert.pem
 ```
