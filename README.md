@@ -28,7 +28,7 @@ kubectl apply -f https://github.com/bitnami-labs/sealed-secrets/releases/downloa
 Verify controller is running:
 ```
 ```bash
-kubectl get pods -n kube-system -l sealedsecrets.bitnami.com/sealed-secrets-controller=true
+kubectl get pods -n kube-system | grep  sealed-secrets
 Expected: 1 pod in Running state.
 ```
 2. Install kubeseal CLI (Linux)
@@ -42,7 +42,7 @@ rm kubeseal kubeseal-0.34.0-linux-amd64.tar.gz
 Verify:
 
 ```bash
-kubeseal version  # Should show v0.34.0
+kubeseal --version  # Should show v0.34.0
 ```
 3. Generate Public Certificate
 
