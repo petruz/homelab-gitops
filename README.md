@@ -23,46 +23,51 @@ kubeseal CLI installed (v0.34.0)
 Installation
 1. Install Sealed Secrets Controller (v0.34.0)
 
-bash
+```bash
 kubectl apply -f https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.34.0/controller.yaml
 Verify controller is running:
-
-bash
+```
+```bash
 kubectl get pods -n kube-system -l sealedsecrets.bitnami.com/sealed-secrets-controller=true
 Expected: 1 pod in Running state.
-
+```
 2. Install kubeseal CLI (Linux)
 
-bash
+```bash
 curl -OL "https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.34.0/kubeseal-0.34.0-linux-amd64.tar.gz"
 tar -xvzf kubeseal-0.34.0-linux-amd64.tar.gz kubeseal
 sudo install -m 755 kubeseal /usr/local/bin/kubeseal
 rm kubeseal kubeseal-0.34.0-linux-amd64.tar.gz
+```
 Verify:
 
-bash
+```bash
 kubeseal version  # Should show v0.34.0
+```
 3. Generate Public Certificate
 
-bash
+```bash
 kubeseal --fetch-cert \
   --controller-name=sealed-secrets \
   --controller-namespace=kube-system \
   > pub-cert.pem
+```
 Keep pub-cert.pem safe (gitignored) - required for encrypting secrets.
 
 Vaultwarden Deployment
 Quickstart (one-time setup)
 
-bash
+```bash
 # Encrypt secrets and deploy
 make seal apply
+```
 Detailed Deployment Steps
 
 Edit Vaultwarden configuration (unsealed template):
 
-bash
+```bash
 vim vaultwarden/values.unsealed.yaml
+```
 Required changes:
 
 ingress.hosts[0].host: Your domain (e.g., vault.example.com)
@@ -75,24 +80,28 @@ ingress.tls[0].secretName: Your TLS secret name
 
 Encrypt secrets:
 
-bash
+```bash
 make seal
+```
 Commit and deploy:
 
-bash
+```bash
 git add .
 git commit -m "feat: deploy vaultwarden"
 git push origin main
 make apply
+```
 Verify deployment:
 
-bash
+```bash
 kubectl get all -n vaultwarden
 kubectl get sealedsecret -n vaultwarden
+```
 Port-forward for testing:
 
-bash
+```bash
 kubectl port-forward -n vaultwarden svc/vaultwarden 8080:80
+```
 Access: http://localhost:8080
 
 Client Setup
@@ -106,7 +115,7 @@ Browser	Chrome/Firefox/Safari extensions	https://vault.example.com
 Usage & Updates
 Update Vaultwarden Configuration
 
-bash
+```bash
 # 1. Edit unsealed values
 vim vaultwarden/values.unsealed.yaml
 
@@ -120,10 +129,10 @@ mkdir -p new-service
 # Edit values.unsealed.yaml
 # make seal apply
 Backup & Disaster Recovery
-
+```
 Everything is in GitHub - single source of truth:
 
-bash
+```bash
 # Full restore from Git
 git clone https://github.com/username/homelab-gitops
 cd homelab-gitops
@@ -134,24 +143,28 @@ make unsealed	Generate fresh pub-cert.pem
 make seal	Encrypt values.unsealed.yaml → values-sealed.yaml
 make apply	Deploy everything (kubectl apply -k .)
 make clean	Delete all resources
+```
 Troubleshooting
 Controller Issues
 
-bash
+```bash
 # Check controller logs
 kubectl logs -n kube-system -l sealedsecrets.bitnami.com/sealed-secrets-controller=true
 
 # Multiple controllers? Clean old deployments
 kubectl delete deployment sealed-secrets-controller -n kube-system --ignore-not-found
+```
 SealedSecret Errors
 
-bash
+```bash
 kubectl describe sealedsecret vaultwarden-values -n vaultwarden
+```
 Vaultwarden Not Starting
 
-bash
+```bash
 kubectl logs -n vaultwarden deployment/vaultwarden
 kubectl get pvc -n vaultwarden  # Check storage
+```
 Architecture Overview
 text
 GitHub (encrypted) ─── SealedSecret ───> RKE2 ───> Secret (decrypted)
