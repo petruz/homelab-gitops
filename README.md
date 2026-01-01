@@ -1,38 +1,57 @@
-# Homelab GitOps - RKE2
+# Homelab GitOps for RKE2
 
-Repo GitOps per Vaultwarden + futuri servizi.
+A small GitOps repository for deploying services on an RKE2 cluster using Flux and Bitnami Sealed Secrets for encrypted configuration. The example service included here is Vaultwarden (Bitwarden-compatible).
 
-## Quickstart
-```bash
-make seal apply
-```
+---
 
-Homelab GitOps - RKE2 + Sealed Secrets
-GitOps repository for managing Vaultwarden (Bitwarden compatible) and future services on RKE2 cluster using Sealed Secrets for encrypted secrets.
-​
+## Table of contents
 
-Prerequisites
-RKE2 cluster running
+- [Prerequisites](#prerequisites)
+- [Sealed Secrets — Install & Use](#sealed-secrets--install--use)
+  - [Install the controller](#install-the-controller)
+  - [Install kubeseal CLI](#install-kubeseal-cli)
+  - [Generate public cert for encryption](#generate-public-cert-for-encryption)
+  - [Workflow with this repo (Makefile)](#workflow-with-this-repo-makefile)
+  - [Troubleshooting Sealed Secrets](#troubleshooting-sealed-secrets)
+- [Vaultwarden — Deployment](#vaultwarden--deployment)
+  - [Quickstart](#quickstart)
+  - [Configure values](#configure-values)
+  - [Encrypt and deploy](#encrypt-and-deploy)
+  - [Verify & test](#verify--test)
+- [Add new services](#add-new-services)
+- [Makefile commands](#makefile-commands)
+- [Compatibility & Notes](#compatibility--notes)
 
-kubectl configured to access cluster
+---
 
-Git repository cloned locally
+## Prerequisites
 
-kubeseal CLI installed (v0.34.0)
+- An RKE2 cluster (kubernetes) up and reachable via `kubectl`.
+- `kubectl` configured to talk to the target cluster.
+- Git repository cloned locally.
+- `kubeseal` CLI installed (recommended v0.34.0 to match the controller used in examples).
 
-Installation
-1. Install Sealed Secrets Controller (v0.34.0)
+## Sealed Secrets — Install & Use
+
+This repository uses Bitnami Sealed Secrets so you can keep secrets encrypted in Git and let the Sealed Secrets controller decrypt them inside the cluster.
+
+### Install the controller
+
+Apply the controller manifest (example version shown):
 
 ```bash
 kubectl apply -f https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.34.0/controller.yaml
 ```
-Verify controller is running:
-```bash
-kubectl get pods -n kube-system | grep  sealed-secrets
-```
-Expected: 1 pod in Running state.
 
-2. Install kubeseal CLI (Linux)
+Verify the controller is running:
+
+```bash
+kubectl get pods -n kube-system | grep sealed-secrets
+```
+
+### Install kubeseal CLI
+
+On Linux:
 
 ```bash
 curl -OL "https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.34.0/kubeseal-0.34.0-linux-amd64.tar.gz"
@@ -40,12 +59,16 @@ tar -xvzf kubeseal-0.34.0-linux-amd64.tar.gz kubeseal
 sudo install -m 755 kubeseal /usr/local/bin/kubeseal
 rm kubeseal kubeseal-0.34.0-linux-amd64.tar.gz
 ```
-Verify:
+
+Check version:
 
 ```bash
-kubeseal --version  # Should show v0.34.0
+kubeseal --version
 ```
-3. Generate Public Certificate
+
+### Generate public cert for encryption
+
+Fetch the Sealed Secrets public certificate and save it locally (this file is gitignored in this repo):
 
 ```bash
 kubeseal --fetch-cert \
@@ -53,137 +76,111 @@ kubeseal --fetch-cert \
   --controller-namespace=kube-system \
   > pub-cert.pem
 ```
-Keep pub-cert.pem safe (gitignored) - required for encrypting secrets.
 
-Vaultwarden Deployment
-Quickstart (one-time setup)
+Note: controller name may differ; run `kubectl -n kube-system get deploy` to check and adjust `--controller-name` if needed.
 
-```bash
-# Encrypt secrets and deploy
-make seal apply
-```
-Detailed Deployment Steps
+Keep `pub-cert.pem` safe locally — it is used to encrypt secrets before committing them to Git.
 
-Edit Vaultwarden configuration (unsealed template):
+**Note:** Makefiles are service-specific and are located inside each service folder (for example, see `vaultwarden/Makefile`). See the **Vaultwarden — Deployment** section below for the service-local commands and example workflow.
 
-```bash
-vim vaultwarden/values.unsealed.yaml
-```
-Required changes:
 
-ingress.hosts[0].host: Your domain (e.g., vault.example.com)
+### Troubleshooting Sealed Secrets
 
-env.ADMIN_TOKEN: Generate strong token (openssl rand -base64 48)
-
-env.DOMAIN: Full HTTPS URL
-
-ingress.tls[0].secretName: Your TLS secret name
-
-Encrypt secrets:
+- Check controller logs:
 
 ```bash
-make seal
-```
-Commit and deploy:
-
-```bash
-git add .
-git commit -m "feat: deploy vaultwarden"
-git push origin main
-make apply
-```
-Verify deployment:
-
-```bash
-kubectl get all -n vaultwarden
-kubectl get sealedsecret -n vaultwarden
-```
-Port-forward for testing:
-
-```bash
-kubectl port-forward -n vaultwarden svc/vaultwarden 8080:80
-```
-Access: http://localhost:8080
-
-Client Setup
-Download official Bitwarden clients and configure custom server:
-
-Platform	Client	Server URL
-iOS	App Store: Bitwarden	https://vault.example.com
-macOS	App Store / brew	https://vault.example.com
-Linux	flatpak install flathub com.bitwarden.client	https://vault.example.com
-Browser	Chrome/Firefox/Safari extensions	https://vault.example.com
-Usage & Updates
-Update Vaultwarden Configuration
-
-```bash
-# 1. Edit unsealed values
-vim vaultwarden/values.unsealed.yaml
-
-# 2. Encrypt + deploy
-make seal && git add . && git commit -m "chore: update vaultwarden" && git push && make apply
-Add New Services
-
-text
-mkdir -p new-service
-# Copy vaultwarden/ structure
-# Edit values.unsealed.yaml
-# make seal apply
-Backup & Disaster Recovery
-```
-Everything is in GitHub - single source of truth:
-
-```bash
-# Full restore from Git
-git clone https://github.com/username/homelab-gitops
-cd homelab-gitops
-make apply
-Makefile Commands
-Command	Description
-make unsealed	Generate fresh pub-cert.pem
-make seal	Encrypt values.unsealed.yaml → values-sealed.yaml
-make apply	Deploy everything (kubectl apply -k .)
-make clean	Delete all resources
-```
-Troubleshooting
-Controller Issues
-
-```bash
-# Check controller logs
 kubectl logs -n kube-system -l sealedsecrets.bitnami.com/sealed-secrets-controller=true
-
-# Multiple controllers? Clean old deployments
-kubectl delete deployment sealed-secrets-controller -n kube-system --ignore-not-found
 ```
-SealedSecret Errors
+
+- Describe a SealedSecret if an error occurs:
 
 ```bash
 kubectl describe sealedsecret vaultwarden-values -n vaultwarden
 ```
-Vaultwarden Not Starting
+
+---
+
+## Vaultwarden — Deployment
+
+This repository contains an example HelmRelease and values for Vaultwarden. The secrets are stored encrypted as a SealedSecret.
+
+### Quickstart
 
 ```bash
-kubectl logs -n vaultwarden deployment/vaultwarden
-kubectl get pvc -n vaultwarden  # Check storage
+# 1. Edit vaultwarden/values.unsealed.yaml and set your domain and admin token
+# 2. Encrypt the values: make seal
+# 3. Commit and push sealed values to Git
+# 4. Deploy: make apply
 ```
-Architecture Overview
-text
-GitHub (encrypted) ─── SealedSecret ───> RKE2 ───> Secret (decrypted)
-                                                           ↓
-                                                      Vaultwarden Pod
-Security: Secrets encrypted asymmetrically - only cluster controller can decrypt.
-​
 
-Adding More Services
-Copy vaultwarden/ → new-service/
+### Configure values
 
-Edit new-service/values.unsealed.yaml
+Edit `vaultwarden/values.unsealed.yaml` and set at least the following:
 
-Update new-service/helmrelease.yaml (chart, repo)
+- `ingress.hosts[0].host` — your domain (e.g., `vault.example.com`).
+- `env.ADMIN_TOKEN` — generate a strong token (e.g., `openssl rand -base64 48`).
+- `env.DOMAIN` — full HTTPS URL (e.g., `https://vault.example.com`).
+- `ingress.tls[0].secretName` — the TLS secret name present in the cluster.
 
-make seal apply
+### Vaultwarden Makefile (service-local)
 
-Template available for: Home Assistant, Authelia, Prometheus, etc.
+A service-local Makefile is available at `vaultwarden/Makefile`. When working on Vaultwarden, `cd vaultwarden` and use the Makefile for service-specific operations:
 
-Last updated: December 31, 2025
+- `make unsealed` — fetch the public certificate (`pub-cert.pem`) into the service directory.
+- `make seal` — encrypt `values.unsealed.yaml` → `values-sealed.yaml`.
+- `make apply` — apply the `vaultwarden` kustomization (`kubectl apply -k .`).
+- `make clean` — delete the resources created by the kustomization.
+
+Typical flow (service-local):
+
+1. `cd vaultwarden`
+2. Edit `values.unsealed.yaml`.
+3. Run `make seal` to produce `values-sealed.yaml`.
+4. Commit and push the sealed file to Git.
+5. Run `make apply` (inside `vaultwarden/`) to deploy, or push and let your GitOps operator apply the change.
+
+### Encrypt and deploy
+
+```bash
+make seal
+git add vaultwarden/values-sealed.yaml
+git commit -m "feat: deploy vaultwarden"
+git push origin main
+make apply
+```
+
+### Verify & test
+
+```bash
+kubectl get all -n vaultwarden
+kubectl get sealedsecret -n vaultwarden
+kubectl logs -n vaultwarden deployment/vaultwarden
+# Port-forward for local testing
+kubectl port-forward -n vaultwarden svc/vaultwarden 8080:80
+# Access: http://localhost:8080
+```
+
+---
+
+## Add new services
+
+To add another service, copy the `vaultwarden/` directory structure to a new folder, update `values.unsealed.yaml`, add a `helmrelease.yaml` and follow the same `make seal` → commit → `make apply` flow.
+
+## Service Makefile commands
+
+Each service may include its own Makefile with service-specific commands (see `vaultwarden/Makefile` for an example). Common commands found in service Makefiles include:
+
+- `make unsealed` — fetch the SealedSecrets public certificate (`pub-cert.pem`).
+- `make seal` — encrypt the service's `values.unsealed.yaml` into `values-sealed.yaml`.
+- `make apply` — `kubectl apply -k .` (run inside the service folder to apply its Kustomize manifest).
+- `make clean` — delete the applied resources for the service.
+
+## Compatibility & notes
+
+- Tested with RKE2 and Flux/HelmRelease patterns.
+- Sealed Secrets controller version in examples: v0.34.0 — make sure CLI and controller versions are compatible.
+
+---
+
+Last updated: 2026-01-01
 Compatible: RKE2 v1.30+, Sealed Secrets v0.34.0

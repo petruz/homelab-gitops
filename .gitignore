@@ -1,0 +1,6 @@
+# sealed-secrets
+*/.unsealed.yaml
+**/.unencrypted
+pub-cert.pem
+*.local
+.DS_Store
