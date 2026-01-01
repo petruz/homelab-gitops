@@ -2,7 +2,8 @@
 .PHONY: seal apply unsealed clean
 
 NAMESPACE ?= vaultwarden
-CERT_FILE ?= pub-cert.pem
+# Default certificate file is at repository root (so all services can share it)
+CERT_FILE ?= ../pub-cert.pem
 
 # Genera cert dal cluster (una tantum)
 unsealed:
