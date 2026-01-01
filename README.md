@@ -1,6 +1,6 @@
 # Homelab GitOps for RKE2
 
-A small GitOps repository for deploying services on an RKE2 cluster using Flux and Bitnami Sealed Secrets for encrypted configuration. The example service included here is Vaultwarden (Bitwarden-compatible).
+A small repository for deploying services on an RKE2 cluster using Bitnami Sealed Secrets for encrypted configuration. The example service included here is Vaultwarden (Bitwarden-compatible).
 
 ---
 
@@ -8,17 +8,7 @@ A small GitOps repository for deploying services on an RKE2 cluster using Flux a
 
 - [Prerequisites](#prerequisites)
 - [Sealed Secrets — Install & Use](#sealed-secrets--install--use)
-  - [Install the controller](#install-the-controller)
-  - [Install kubeseal CLI](#install-kubeseal-cli)
-  - [Generate public cert for encryption](#generate-public-cert-for-encryption)
-  - [Workflow with this repo (Makefile)](#workflow-with-this-repo-makefile)
-  - [Troubleshooting Sealed Secrets](#troubleshooting-sealed-secrets)
-- [Vaultwarden — Deployment](#vaultwarden--deployment)
-  - [Quickstart](#quickstart)
-  - [Configure values](#configure-values)
-  - [Encrypt and deploy](#encrypt-and-deploy)
-  - [Verify & test](#verify--test)
-- [Add new services](#add-new-services)
+- [Services](#services)
 - [Makefile commands](#makefile-commands)
 - [Compatibility & Notes](#compatibility--notes)
 
@@ -81,7 +71,7 @@ Note: controller name may differ; run `kubectl -n kube-system get deploy` to che
 
 Keep `pub-cert.pem` safe locally — it is used to encrypt secrets before committing them to Git.
 
-**Note:** Makefiles are service-specific and are located inside each service folder (for example, see `vaultwarden/Makefile`). See the **Vaultwarden — Deployment** section below for the service-local commands and example workflow.
+**Note:** Makefiles are service-specific and are located inside each service folder (for example, see `vaultwarden/Makefile`). See the service's README (e.g., `vaultwarden/README.md`) for service-local commands and example workflow.
 
 
 ### Troubleshooting Sealed Secrets
@@ -100,66 +90,9 @@ kubectl describe sealedsecret vaultwarden-values -n vaultwarden
 
 ---
 
-## Vaultwarden — Deployment
+## Services
 
-This repository contains an example HelmRelease and values for Vaultwarden. The secrets are stored encrypted as a SealedSecret.
-
-### Quickstart
-
-```bash
-# 1. Edit vaultwarden/values.unsealed.yaml and set your domain and admin token
-# 2. Encrypt the values: make seal
-# 3. Commit and push sealed values to Git
-# 4. Deploy: make apply
-```
-
-### Configure values
-
-Edit `vaultwarden/values.unsealed.yaml` and set at least the following:
-
-- `ingress.hosts[0].host` — your domain (e.g., `vault.example.com`).
-- `env.ADMIN_TOKEN` — generate a strong token (e.g., `openssl rand -base64 48`).
-- `env.DOMAIN` — full HTTPS URL (e.g., `https://vault.example.com`).
-- `ingress.tls[0].secretName` — the TLS secret name present in the cluster.
-
-### Vaultwarden Makefile (service-local)
-
-A service-local Makefile is available at `vaultwarden/Makefile`. When working on Vaultwarden, `cd vaultwarden` and use the Makefile for service-specific operations:
-
-- `make unsealed` — fetch the public certificate (`pub-cert.pem`) into the service directory.
-- `make seal` — encrypt `values.unsealed.yaml` → `values-sealed.yaml`.
-- `make apply` — apply the `vaultwarden` kustomization (`kubectl apply -k .`).
-- `make clean` — delete the resources created by the kustomization.
-
-Typical flow (service-local):
-
-1. `cd vaultwarden`
-2. Edit `values.unsealed.yaml`.
-3. Run `make seal` to produce `values-sealed.yaml`.
-4. Commit and push the sealed file to Git.
-5. Run `make apply` (inside `vaultwarden/`) to deploy, or push and let your GitOps operator apply the change.
-
-### Encrypt and deploy
-
-```bash
-make seal
-git add vaultwarden/values-sealed.yaml
-git commit -m "feat: deploy vaultwarden"
-git push origin main
-make apply
-```
-
-### Verify & test
-
-```bash
-kubectl get all -n vaultwarden
-kubectl get sealedsecret -n vaultwarden
-kubectl logs -n vaultwarden deployment/vaultwarden
-# Port-forward for local testing
-kubectl port-forward -n vaultwarden svc/vaultwarden 8080:80
-# Access: http://localhost:8080
-```
-
+This repository contains service packages under their respective directories. For Vaultwarden deployment and service-local Makefile usage, see `vaultwarden/README.md`.
 ---
 
 ## Add new services
@@ -177,7 +110,8 @@ Each service may include its own Makefile with service-specific commands (see `v
 
 ## Compatibility & notes
 
-- Tested with RKE2 and Flux/HelmRelease patterns.
+- Tested with RKE2.
+- Example manifests include a `HelmRelease` format but you can adapt the resources to your deployment workflow.
 - Sealed Secrets controller version in examples: v0.34.0 — make sure CLI and controller versions are compatible.
 
 ---
