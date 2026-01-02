@@ -1,29 +1,30 @@
-### `Makefile`
 .PHONY: seal apply unsealed clean
 
 NAMESPACE ?= vaultwarden
-# Default certificate file is at repository root (so all services can share it)
 CERT_FILE ?= ../pub-cert.pem
 
-# Genera cert dal cluster (una tantum)
-unsealed:
-	kubeseal --fetch-cert \
-	  --controller-name=sealed-secrets \
-	  --controller-namespace=kube-system \
-	  > $(CERT_FILE)
-
-# Encrypt the unsealed values into a sealed secret
+# 1) Encrypt values.unsealed.yaml into a SealedSecret
 seal:
-	kubeseal < values.unsealed.yaml \
-	  > values-sealed.yaml \
+	@echo "Generating Secret from values.unsealed.yaml and sealing it..."
+	@{ \
+	  echo "apiVersion: v1"; \
+	  echo "kind: Secret"; \
+	  echo "metadata:"; \
+	  echo "  name: vaultwarden-values"; \
+	  echo "  namespace: $(NAMESPACE)"; \
+	  echo "type: Opaque"; \
+	  echo "stringData:"; \
+	  echo "  values.yaml: |"; \
+	  sed 's/^/    /' values.unsealed.yaml; \
+	} | kubeseal \
 	  --cert $(CERT_FILE) \
-	  -n $(NAMESPACE)
+	  -n $(NAMESPACE) \
+	  > values-sealed.yaml
 
-# Deploy tutto
+# 2) Apply kustomization in this folder
 apply:
 	kubectl apply -k .
 
-# Cleanup
+# 3) Cleanup
 clean:
 	kubectl delete -k . --ignore-not-found
-
