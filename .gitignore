@@ -1,5 +1,6 @@
 # sealed-secrets
 */.unsealed.yaml
+*/values.unsealed.yaml
 **/.unencrypted
 pub-cert.pem
 *.local
